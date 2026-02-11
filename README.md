@@ -61,7 +61,7 @@ Click on the **"Console"** tab.
 
 First type"`allow pasting`" in the console and press Enter (some browsers require this to enable pasting).
 
-Then copy the ENTIRE script from `extract_conversation_console.js`.
+Then copy the ENTIRE script from `chatgpt_ultimate_exporter.js`.
 
 ``
 
