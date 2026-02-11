@@ -140,7 +140,14 @@ def organize_exports(source_dir='.'):
     print(f"\n📁 Archives location: {archives_path}")
 
 def main():
-    source = sys.argv[1] if len(sys.argv) > 1 else '.'
+    # If argument provided, use it. Otherwise use the script's directory.
+    if len(sys.argv) > 1:
+        source = sys.argv[1]
+    else:
+        # Use the directory where this script is located
+        source = os.path.dirname(os.path.abspath(__file__))
+        if not source:
+            source = '.'
     
     if not os.path.isdir(source):
         print(f"❌ Error: '{source}' is not a valid directory")
