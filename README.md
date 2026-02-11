@@ -22,7 +22,7 @@ OpenAI's data export:
 
 ## The Solution: Browser Console Export
 
-This script extracts any ChatGPT conversation directly from your browser and downloads it as a readable Markdown file.
+This script extracts any ChatGPT conversation directly from your browser and downloads it as a readable Markdown file, as well as an HTML file that retains formatting, downloads all images, links, and sources. It also creates a .json for training purposes.
 
 ### Step-by-Step Guide
 
@@ -369,7 +369,7 @@ Copy this ENTIRE script and paste it into the console:
 
 #### Step 5: Press Enter
 
-The script will run, and a `.md` file will automatically download to your default Downloads folder.
+The script will run, and `.md`, `.html`, and `.json` files will automatically download to your default Downloads folder.
 
 #### Step 6: Repeat for Other Conversations
 
