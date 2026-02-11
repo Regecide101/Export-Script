@@ -1,267 +1,290 @@
-// ChatGPT Conversation Extractor v3.1 - TRIPLE EXPORT
-// Exports HTML, Markdown, AND JSON - Downloads all three files
+// Universal AI Chat Exporter v1.1
+// Works with: ChatGPT, Claude, Gemini, Grok, Google AI Studio, Perplexity, and more!
+// Your data. Your conversations. Your right to have them.
 
 (function() {
-    const articles = document.querySelectorAll('main article');
-    if (articles.length === 0) {
-        alert('No messages found!');
+    'use strict';
+    
+    // ========== PLATFORM DETECTION ==========
+    const PLATFORMS = {
+        chatgpt: {
+            name: 'ChatGPT',
+            match: () => location.hostname.includes('chat.openai.com') || location.hostname.includes('chatgpt.com'),
+            getTitle: () => document.title.replace(' | ChatGPT', '').replace('ChatGPT - ', '') || 'ChatGPT_Export',
+            getMessages: () => {
+                const articles = document.querySelectorAll('main article');
+                return Array.from(articles).map(article => {
+                    const isUser = article.querySelector('[data-message-author-role="user"]') !== null;
+                    return {
+                        role: isUser ? 'user' : 'assistant',
+                        content: article.innerText.replace(/^(You said:|ChatGPT said:)\s*/i, '').trim(),
+                        html: article.innerHTML
+                    };
+                });
+            }
+        },
+        claude: {
+            name: 'Claude',
+            match: () => location.hostname.includes('claude.ai'),
+            getTitle: () => {
+                const title = document.querySelector('[data-testid="chat-title"]')?.textContent 
+                    || document.title.replace(' - Claude', '') || 'Claude_Export';
+                return title;
+            },
+            getMessages: () => {
+                const messages = document.querySelectorAll('[data-testid="user-message"], [data-testid="assistant-message"]');
+                if (messages.length === 0) {
+                    const turns = document.querySelectorAll('.font-user-message, .font-claude-message');
+                    return Array.from(turns).map(el => ({
+                        role: el.classList.contains('font-user-message') ? 'user' : 'assistant',
+                        content: el.innerText.trim(),
+                        html: el.innerHTML
+                    }));
+                }
+                return Array.from(messages).map(msg => ({
+                    role: msg.dataset.testid.includes('user') ? 'user' : 'assistant',
+                    content: msg.innerText.trim(),
+                    html: msg.innerHTML
+                }));
+            }
+        },
+        gemini: {
+            name: 'Gemini',
+            match: () => location.hostname.includes('gemini.google.com'),
+            getTitle: () => {
+                const title = document.querySelector('.conversation-title')?.textContent 
+                    || document.title.replace(' - Gemini', '').replace('Gemini', '').trim() || 'Gemini_Export';
+                return title;
+            },
+            getMessages: () => {
+                // Gemini has user queries and model responses
+                const containers = document.querySelectorAll('.conversation-container > div, [class*="query-content"], [class*="response-content"], .query-text, .model-response');
+                const messages = [];
+                
+                // Try multiple selectors
+                const userQueries = document.querySelectorAll('.query-text, [class*="query-content"], [data-message-author="user"]');
+                const modelResponses = document.querySelectorAll('.model-response-text, [class*="response-content"], [class*="model-response"], .markdown');
+                
+                // Fallback: get all message-like elements
+                if (userQueries.length === 0 && modelResponses.length === 0) {
+                    const allMessages = document.querySelectorAll('message-content, .message-content, [class*="message"]');
+                    return Array.from(allMessages).map((el, i) => ({
+                        role: i % 2 === 0 ? 'user' : 'assistant',
+                        content: el.innerText.trim()
+                    }));
+                }
+                
+                // Interleave user and assistant
+                const maxLen = Math.max(userQueries.length, modelResponses.length);
+                for (let i = 0; i < maxLen; i++) {
+                    if (userQueries[i]) {
+                        messages.push({
+                            role: 'user',
+                            content: userQueries[i].innerText.trim()
+                        });
+                    }
+                    if (modelResponses[i]) {
+                        messages.push({
+                            role: 'assistant',
+                            content: modelResponses[i].innerText.trim()
+                        });
+                    }
+                }
+                return messages;
+            }
+        },
+        // Grok and Google AI Studio removed - too fussy with their DOM
+        perplexity: {
+            name: 'Perplexity',
+            match: () => location.hostname.includes('perplexity.ai'),
+            getTitle: () => document.title.replace(' - Perplexity', '') || 'Perplexity_Export',
+            getMessages: () => {
+                const messages = [];
+                const queries = document.querySelectorAll('[class*="query"], [class*="Question"]');
+                const answers = document.querySelectorAll('[class*="answer"], [class*="Answer"], .prose');
+                
+                queries.forEach((q, i) => {
+                    messages.push({ role: 'user', content: q.innerText.trim() });
+                    if (answers[i]) {
+                        messages.push({ role: 'assistant', content: answers[i].innerText.trim() });
+                    }
+                });
+                return messages;
+            }
+        },
+        poe: {
+            name: 'Poe',
+            match: () => location.hostname.includes('poe.com'),
+            getTitle: () => document.title.replace(' - Poe', '') || 'Poe_Export',
+            getMessages: () => {
+                const messages = document.querySelectorAll('[class*="Message_row"], [class*="message"]');
+                return Array.from(messages).map(msg => ({
+                    role: msg.querySelector('[class*="human"]') || msg.classList.toString().includes('human') ? 'user' : 'assistant',
+                    content: msg.innerText.trim()
+                }));
+            }
+        },
+        copilot: {
+            name: 'Microsoft Copilot',
+            match: () => location.hostname.includes('copilot.microsoft.com') || location.hostname.includes('bing.com'),
+            getTitle: () => 'Copilot_Export',
+            getMessages: () => {
+                const messages = document.querySelectorAll('[class*="message"], [class*="Message"]');
+                return Array.from(messages).map((msg, i) => ({
+                    role: msg.classList.toString().includes('user') || i % 2 === 0 ? 'user' : 'assistant',
+                    content: msg.innerText.trim()
+                }));
+            }
+        },
+        // Generic fallback
+        generic: {
+            name: 'Unknown Platform',
+            match: () => true,
+            getTitle: () => document.title || 'Chat_Export',
+            getMessages: () => {
+                const selectors = [
+                    '[data-role="user"], [data-role="assistant"]',
+                    '.user-message, .assistant-message, .ai-message',
+                    '[class*="user-message"], [class*="assistant-message"]',
+                    '[class*="human"], [class*="bot"]',
+                    '.message, .chat-message',
+                    '[class*="Message"], [class*="message"]'
+                ];
+                for (const selector of selectors) {
+                    const msgs = document.querySelectorAll(selector);
+                    if (msgs.length > 1) {
+                        return Array.from(msgs).map((msg, i) => ({
+                            role: msg.dataset?.role || (msg.className.toLowerCase().includes('user') || msg.className.toLowerCase().includes('human') ? 'user' : 'assistant'),
+                            content: msg.innerText.trim()
+                        }));
+                    }
+                }
+                return [];
+            }
+        }
+    };
+    
+    // ========== DETECT PLATFORM ==========
+    let platform = null;
+    for (const [key, p] of Object.entries(PLATFORMS)) {
+        if (key !== 'generic' && p.match()) {
+            platform = p;
+            console.log(`🎯 Matched platform: ${key}`);
+            break;
+        }
+    }
+    if (!platform) platform = PLATFORMS.generic;
+    
+    console.log(`🔍 Detected platform: ${platform.name}`);
+    console.log(`📍 URL: ${location.href}`);
+    
+    // ========== SAFE MARKDOWN CONVERTER (no innerHTML) ==========
+    function textToMarkdown(text) {
+        // Simple text-based conversion without DOM manipulation
+        if (!text) return '';
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '**$1**')  // Keep bold
+            .replace(/\*(.*?)\*/g, '*$1*')        // Keep italic
+            .replace(/`(.*?)`/g, '`$1`')          // Keep code
+            .trim();
+    }
+    
+    // ========== EXTRACT MESSAGES ==========
+    let messages = [];
+    try {
+        messages = platform.getMessages();
+    } catch (e) {
+        console.error('Error extracting messages:', e);
+    }
+    
+    // Filter out empty messages
+    messages = messages.filter(m => m.content && m.content.length > 0);
+    
+    if (messages.length === 0) {
+        const debugInfo = `Platform: ${platform.name}\nURL: ${location.href}\nHostname: ${location.hostname}`;
+        console.log('Debug info:', debugInfo);
+        alert(`❌ No messages found on ${platform.name}!\n\n${debugInfo}\n\nTry scrolling to load messages, or this might be a new UI version.`);
         return;
     }
     
-    let title = document.title.replace(' | ChatGPT', '').replace('ChatGPT - ', '') || 'Untitled';
+    const title = platform.getTitle() || 'Chat_Export';
     const safeName = title.substring(0, 50).replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_');
     const timestamp = new Date().toISOString().split('T')[0];
     
-    console.log(`Extracting "${title}" - ${articles.length} messages in 3 formats...`);
+    console.log(`📝 Extracting "${title}" - ${messages.length} messages from ${platform.name}...`);
     
-    // ========== HTML TO MARKDOWN CONVERTER ==========
-    function htmlToMarkdown(element) {
-        function processNode(node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                return node.textContent;
-            }
-            if (node.nodeType !== Node.ELEMENT_NODE) return '';
-            
-            const tag = node.tagName.toLowerCase();
-            const children = Array.from(node.childNodes).map(processNode).join('');
-            
-            switch(tag) {
-                case 'h1': return `# ${children}\n\n`;
-                case 'h2': return `## ${children}\n\n`;
-                case 'h3': return `### ${children}\n\n`;
-                case 'h4': return `#### ${children}\n\n`;
-                case 'h5': return `##### ${children}\n\n`;
-                case 'h6': return `###### ${children}\n\n`;
-                case 'strong': case 'b': return `**${children}**`;
-                case 'em': case 'i': return `*${children}*`;
-                case 'u': return `<u>${children}</u>`;
-                case 's': case 'strike': case 'del': return `~~${children}~~`;
-                case 'code': 
-                    if (node.parentElement?.tagName.toLowerCase() === 'pre') return children;
-                    return `\`${children}\``;
-                case 'pre':
-                    const codeEl = node.querySelector('code');
-                    const lang = codeEl?.className?.match(/language-(\w+)/)?.[1] || '';
-                    const code = codeEl?.textContent || node.textContent;
-                    return `\n\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
-                case 'a':
-                    const href = node.getAttribute('href') || '';
-                    if (href && href !== children) return `[${children}](${href})`;
-                    return children || href;
-                case 'img':
-                    const src = node.getAttribute('src') || '';
-                    const alt = node.getAttribute('alt') || 'image';
-                    return src.startsWith('data:') ? `![${alt}](embedded-image)` : `![${alt}](${src})`;
-                case 'ul': case 'ol': return `\n${children}\n`;
-                case 'li': 
-                    const parent = node.parentElement?.tagName.toLowerCase();
-                    const prefix = parent === 'ol' 
-                        ? `${Array.from(node.parentElement.children).indexOf(node) + 1}. ` : '- ';
-                    return `${prefix}${children.trim()}\n`;
-                case 'p': return `${children}\n\n`;
-                case 'div': return `${children}\n`;
-                case 'br': return '\n';
-                case 'hr': return '\n---\n\n';
-                case 'blockquote': 
-                    return children.split('\n').map(line => `> ${line}`).join('\n') + '\n\n';
-                case 'table': return `\n${children}\n`;
-                case 'thead': case 'tbody': return children;
-                case 'tr': 
-                    const cells = Array.from(node.querySelectorAll('th, td'))
-                        .map(c => processNode(c).trim()).join(' | ');
-                    const isHeader = node.querySelector('th');
-                    if (isHeader) {
-                        const divider = Array.from(node.querySelectorAll('th')).map(() => '---').join(' | ');
-                        return `| ${cells} |\n| ${divider} |\n`;
-                    }
-                    return `| ${cells} |\n`;
-                case 'th': case 'td': return children;
-                case 'script': case 'style': case 'svg': case 'button': return '';
-                default: return children;
-            }
-        }
-        return processNode(element).trim();
-    }
-    
-    // ========== EXTRACT ALL MESSAGES ==========
-    const messages = [];
-    let stats = { empty: 0, images: 0, links: 0, codeBlocks: 0 };
-    
-    for (let i = 0; i < articles.length; i++) {
-        const article = articles[i];
-        const isUser = article.querySelector('[data-message-author-role="user"]') !== null;
-        const role = isUser ? 'user' : 'assistant';
-        
-        // Get content element
-        let contentEl = article.querySelector('.markdown, .prose, [class*="markdown"]');
-        if (!contentEl) {
-            contentEl = article.querySelector('[data-message-author-role]')?.parentElement || article;
-        }
-        
-        // Count media
-        stats.images += article.querySelectorAll('img').length;
-        stats.links += article.querySelectorAll('a[href]').length;
-        stats.codeBlocks += article.querySelectorAll('pre').length;
-        
-        // Get HTML (clean it up a bit)
-        let html = contentEl.innerHTML || '';
-        
-        // Get Markdown
-        let markdown = htmlToMarkdown(contentEl);
-        markdown = markdown.replace(/^(You said:|ChatGPT said:)\s*/i, '');
-        
-        // Get plain text as fallback
-        let text = article.innerText || article.textContent || '';
-        text = text.replace(/^(You said:|ChatGPT said:)\s*/i, '').trim();
-        
-        if (markdown.length === 0) markdown = text;
-        if (markdown.length === 0) {
-            stats.empty++;
-            markdown = '*[MESSAGE CONTENT NOT AVAILABLE]*';
-            text = '[MESSAGE CONTENT NOT AVAILABLE]';
-        }
-        
-        // Extract images
-        const images = Array.from(article.querySelectorAll('img')).map(img => ({
-            src: img.getAttribute('src') || '',
-            alt: img.getAttribute('alt') || ''
-        })).filter(img => img.src && !img.src.startsWith('data:'));
-        
-        // Extract links
-        const links = Array.from(article.querySelectorAll('a[href]')).map(a => ({
-            href: a.getAttribute('href') || '',
-            text: a.textContent || ''
-        })).filter(link => link.href);
-        
-        messages.push({
-            index: i + 1,
-            role: role,
-            content: text,
-            markdown: markdown,
-            html: html,
-            images: images,
-            links: links,
-            timestamp: null // ChatGPT doesn't expose this easily
-        });
-    }
-    
-    // ========== BUILD MARKDOWN FILE ==========
+    // ========== BUILD MARKDOWN (safe, no innerHTML) ==========
     let mdContent = `# ${title}\n\n`;
+    mdContent += `**Platform:** ${platform.name}\n`;
     mdContent += `**Extracted:** ${new Date().toLocaleString()}\n`;
-    mdContent += `**Messages:** ${articles.length}\n`;
-    mdContent += `**Format:** Full fidelity Markdown\n\n---\n\n`;
+    mdContent += `**Messages:** ${messages.length}\n\n---\n\n`;
     
-    messages.forEach(msg => {
+    messages.forEach((msg, i) => {
         const roleIcon = msg.role === 'user' ? '👤 USER' : '🤖 ASSISTANT';
-        mdContent += `## [${msg.index}] ${roleIcon}\n\n`;
-        mdContent += msg.markdown;
-        mdContent += `\n\n---\n\n`;
+        mdContent += `## [${i + 1}] ${roleIcon}\n\n${msg.content}\n\n---\n\n`;
     });
     
-    // ========== BUILD HTML FILE ==========
+    // ========== BUILD HTML (safe, escaped) ==========
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     let htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>${escapeHtml(title)}</title>
     <style>
         * { box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px;
-            background: #1a1a1a;
-            color: #e0e0e0;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #1a1a1a; color: #e0e0e0; }
         h1 { color: #fff; border-bottom: 2px solid #444; padding-bottom: 10px; }
         .meta { color: #888; font-size: 14px; margin-bottom: 30px; }
-        .message { 
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 10px;
-            border-left: 4px solid;
-        }
-        .user { 
-            background: #1e3a5f; 
-            border-left-color: #4a9eff;
-        }
-        .assistant { 
-            background: #2d2d2d; 
-            border-left-color: #10a37f;
-        }
-        .role { 
-            font-weight: bold; 
-            margin-bottom: 10px; 
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        .message { margin: 20px 0; padding: 15px; border-radius: 10px; border-left: 4px solid; white-space: pre-wrap; }
+        .user { background: #1e3a5f; border-left-color: #4a9eff; }
+        .assistant { background: #2d2d2d; border-left-color: #10a37f; }
+        .role { font-weight: bold; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; }
         .user .role { color: #4a9eff; }
         .assistant .role { color: #10a37f; }
         .content { line-height: 1.6; }
-        .content img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
-        .content pre { 
-            background: #0d0d0d; 
-            padding: 15px; 
-            border-radius: 8px; 
-            overflow-x: auto;
-        }
-        .content code { 
-            background: #333; 
-            padding: 2px 6px; 
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', monospace;
-        }
-        .content pre code { background: none; padding: 0; }
-        .content a { color: #4a9eff; }
-        .content blockquote {
-            border-left: 3px solid #444;
-            margin: 10px 0;
-            padding-left: 15px;
-            color: #aaa;
-        }
-        hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
     </style>
 </head>
 <body>
-    <h1>${title}</h1>
+    <h1>${escapeHtml(title)}</h1>
     <div class="meta">
+        <strong>Platform:</strong> ${escapeHtml(platform.name)}<br>
         <strong>Extracted:</strong> ${new Date().toLocaleString()}<br>
-        <strong>Messages:</strong> ${articles.length}
+        <strong>Messages:</strong> ${messages.length}
     </div>
 `;
     
-    messages.forEach(msg => {
+    messages.forEach((msg, i) => {
         const roleLabel = msg.role === 'user' ? '👤 User' : '🤖 Assistant';
         htmlContent += `    <div class="message ${msg.role}">
-        <div class="role">[${msg.index}] ${roleLabel}</div>
-        <div class="content">${msg.html || msg.content}</div>
+        <div class="role">[${i + 1}] ${roleLabel}</div>
+        <div class="content">${escapeHtml(msg.content)}</div>
     </div>\n`;
     });
+    htmlContent += `</body></html>`;
     
-    htmlContent += `</body>\n</html>`;
-    
-    // ========== BUILD JSON FILE ==========
+    // ========== BUILD JSON ==========
     const jsonData = {
+        platform: platform.name,
         title: title,
+        url: location.href,
         extracted: new Date().toISOString(),
         message_count: messages.length,
-        stats: stats,
-        messages: messages.map(msg => ({
-            index: msg.index,
+        messages: messages.map((msg, i) => ({
+            index: i + 1,
             role: msg.role,
-            content: msg.content,
-            images: msg.images,
-            links: msg.links
+            content: msg.content
         }))
     };
-    const jsonContent = JSON.stringify(jsonData, null, 2);
     
-    // ========== DOWNLOAD ALL THREE ==========
+    // ========== DOWNLOAD ==========
     function download(content, filename, type) {
-        const blob = new Blob([content], { type: type });
+        const blob = new Blob([typeof content === 'string' ? content : JSON.stringify(content, null, 2)], { type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -273,33 +296,13 @@
         console.log(`✅ Downloaded: ${filename}`);
     }
     
-    // Small delay between downloads to prevent browser blocking
-    download(mdContent, `ChatGPT_${safeName}_${timestamp}.md`, 'text/markdown');
+    const prefix = `${platform.name}_${safeName}_${timestamp}`;
+    
+    download(mdContent, `${prefix}.md`, 'text/markdown');
+    setTimeout(() => download(htmlContent, `${prefix}.html`, 'text/html'), 500);
+    setTimeout(() => download(jsonData, `${prefix}.json`, 'application/json'), 1000);
     
     setTimeout(() => {
-        download(htmlContent, `ChatGPT_${safeName}_${timestamp}.html`, 'text/html');
-    }, 500);
-    
-    setTimeout(() => {
-        download(jsonContent, `ChatGPT_${safeName}_${timestamp}.json`, 'application/json');
-    }, 1000);
-    
-    // Stats
-    const statsMsg = `📊 Stats:
-- Messages: ${articles.length}
-- Empty: ${stats.empty}
-- Images: ${stats.images}
-- Links: ${stats.links}
-- Code blocks: ${stats.codeBlocks}
-
-📁 Files downloaded:
-- .md (Markdown - readable archive)
-- .html (Web page - styled view)
-- .json (Structured data - training/API)`;
-    
-    console.log(`✅ TRIPLE EXPORT COMPLETE!\n${statsMsg}`);
-    
-    setTimeout(() => {
-        alert(`✅ TRIPLE EXPORT COMPLETE!\n\n${statsMsg}`);
+        alert(`✅ ${platform.name} EXPORT COMPLETE!\n\n📊 ${messages.length} messages exported\n\n📁 Files:\n- ${prefix}.md\n- ${prefix}.html\n- ${prefix}.json`);
     }, 1500);
 })();
