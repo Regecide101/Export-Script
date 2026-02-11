@@ -1,4 +1,5 @@
 # How to Export Your ChatGPT Conversations (When OpenAI Won't)
+NOW ALSO WORKS FOR CLAUDE AND GEMINI!
 
 **Your data. Your conversations. Your right to have them.**
 
