@@ -1,3 +1,4 @@
+# Oranmizes downloaded conversations into batches of 3 accordign to their titles.
 
 @echo off
 REM ChatGPT Export Organizer - Windows Batch Version
