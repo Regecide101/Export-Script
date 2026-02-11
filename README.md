@@ -57,7 +57,7 @@ First type"`allow pasting`" in the console and press Enter (some browsers requir
 Then copy the ENTIRE script below and paste it into the console:
 
 ```javascript
-Copy this ENTIRE script and paste it into the console:
+# Copy this ENTIRE script and paste it into the console:
 
 // ChatGPT Conversation Extractor v3.0 - TRIPLE EXPORT
 // Exports HTML, Markdown, AND JSON simultaneously
