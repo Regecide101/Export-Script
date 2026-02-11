@@ -67,18 +67,19 @@ Then copy the ENTIRE script from `chatgpt_ultimate_exporter.js`.
 
 #### Step 5: Press Enter
 
-The script will run, and `.md`, `.html`, and `.json` files will automatically download to your default Downloads folder.
+The script will run, and `.md`, `.html`, and `.json` files, as well as ALL images you uploaded, OR were generated, will automatically download to your default Downloads folder.
+There's a lot of clicking involved, so grab a cuppa coffee or tea, and enjoy the downtime.
 
 #### Step 6: Repeat for Other Conversations
 
 Navigate to another conversation and repeat steps 2-5.
 
-### Step 6: Organize
+### Step 7: Organize
 
-Double-click `organize_exports.bat`.
+When done, double-click `organize_exports.bat`.
 That's it.
 
-This will create an `Archives` folder, with subfolders of each conversation in their `.md`, `.html`, and `.json` formats. 
+This will create an `Archives` folder, with subfolders of each conversation in their `.md`, `.html`, and `.json` formats as well as the relevant image subfolders matched by conversation. 
 
 ---
 
