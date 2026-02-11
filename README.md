@@ -27,7 +27,7 @@ This script extracts any ChatGPT conversation directly from your browser and dow
 
 ## Download:
 -`extract_conversation_console.js`
--`organize_exports.bat`
+-`organize_exports.bat` -- 1-CLICK Organization!
 -`organize_exports.py`
 into a new folder. (Name it whatever you want to)
 
@@ -75,8 +75,8 @@ Navigate to another conversation and repeat steps 2-5.
 
 ### Step 6: Organize
 
-Run: 
--`organize_exports.bat`
+Double-click `organize_exports.bat`.
+That's it.
 
 This will create an `Archives` folder, with subfolders of each conversation in their `.md`, `.html`, and `.json` formats. 
 
