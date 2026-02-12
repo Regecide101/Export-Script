@@ -27,7 +27,7 @@ This script extracts any ChatGPT conversation directly from your browser and dow
 (Still strggling with audio recordings)
 
 ## Download:
--`extract_conversation_console.js`
+-`chatgpt_ultimate_exporter.js`
 -`organize_exports.bat` -- 1-CLICK Organization!
 -`organize_exports.py`
 into a new folder. (Name it whatever you want to)
