@@ -96,9 +96,12 @@ This will create an `Archives` folder, with subfolders of each conversation in t
   - Any text editor (Notepad, VS Code, etc.)
   - Markdown viewers (Obsidian, Typora, etc.)
   - They're just text files - rename to `.txt` if needed
+  - .html files can be accessed via any broswer (or VSCode)
+  - .json files are readable via Notepad, VSCode, or any other text reader.
+  - Images will be created as PNG files
 
 ### Batch Export
-Unfortunately, you need to do this conversation by conversation. But it's still faster than waiting forever for OpenAI's broken export.
+Unfortunately, you need to do this conversation by conversation. But it's still faster than waiting forever for OpenAI's broken export. (Working on a 1-click solution)
 
 ---
 
